@@ -1,0 +1,14 @@
+# Ignore local data downloaded from the NAS
+data/
+*.csv
+*.xlsx
+
+# Ignore exported plots
+figures/
+*.png
+*.jpg
+
+# Ignore R-specific files
+.Rhistory
+.RData
+.DS_Store
