@@ -1,8 +1,8 @@
 # ROH Chapter 32 (Bill 7) Pipeline Analysis
 
-**Author:** Rafael Munoz (UHERO Graduate Assistant)
+**Author:** Rafael Munoz (UHERO Graduate Assistant) w/ Gemini AI Assistance
 **Date:** April 2026  
-**Status:** Active Development
+
 
 ## Overview
 This repository contains the analysis pipeline, web scrapers, and data compilation scripts used to evaluate the City and County of Honolulu's ROH Chapter 32 (Bill 7) affordable housing program. 
