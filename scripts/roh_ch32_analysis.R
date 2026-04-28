@@ -41,13 +41,15 @@ theme_uhero <- function(base_size = 14) {
   theme_minimal(base_size = base_size) +
     theme(
       legend.position = "bottom",
+      # Titles, subtitles, and captions remain original size
       plot.title = element_text(family = "Gotham", face = "bold", size = 16, color = uhero_dark_blue),
       plot.subtitle = element_text(family = "Gotham", size = 12, color = uhero_gray),
       plot.caption = element_text(family = "Gotham", face = "italic", color = uhero_gray, hjust = 0),
-      axis.title = element_text(family = "Gotham", face = "bold", color = uhero_gray),
-      axis.text = element_text(family = "Gotham", color = uhero_gray),
-      legend.title = element_text(family = "Gotham", face = "bold", color = uhero_gray),
-      legend.text = element_text(family = "Gotham", color = uhero_gray),
+      # Axis and Legend text updated to 18 and 20
+      axis.title = element_text(family = "Gotham", face = "bold", size = 20, color = uhero_gray),
+      axis.text = element_text(family = "Gotham", size = 18, color = uhero_gray),
+      legend.title = element_text(family = "Gotham", face = "bold", size = 20, color = uhero_gray),
+      legend.text = element_text(family = "Gotham", size = 18, color = uhero_gray),
       panel.grid.major.x = element_blank() # Removes vertical grid lines for a cleaner look
     )
 }
@@ -217,8 +219,9 @@ roh32_volume_summary <- roh32_clean %>%
 roh32_plot <- ggplot(roh32_volume_summary, aes(x = year_created, y = Total_Units, fill = Project_Stage)) +
   geom_bar(stat = "identity", position = "stack", width = 0.65) +
   geom_hline(yintercept = 500, linetype = "dashed", color = uhero_green, linewidth = 1.2) +
+  # Annotation size converted for ggplot (~size 6.5 represents ~18-20pt font)
   annotate("text", x = 2019, y = 520, label = "Policy Goal (500 units constructed/year)", 
-           color = uhero_green, family = "Gotham", fontface = "bold", hjust = 0) +
+           color = uhero_green, family = "Gotham", fontface = "bold", hjust = 0, size = 6.5) +
   coord_cartesian(ylim = c(0, max(550, max(roh32_volume_summary$Total_Units)))) +
   scale_fill_manual(values = c("Constructed (CO Issued)" = uhero_green,  
                                "Approved & Permitted" = uhero_dark_blue,     
@@ -259,10 +262,10 @@ time_plot <- ggplot(combined_time_summary, aes(x = year_created, y = Median_Days
   scale_shape_manual(values = c("Complete" = 19, "Incomplete/Censored" = 21)) +
   geom_hline(yintercept = 554, linetype = "dashed", color = uhero_green, linewidth = 1) + 
   annotate("text", x = 2018, y = 580, label = "2024 Median Benchmark (554 days)", 
-           color = uhero_green, family = "Gotham", fontface = "bold", hjust = 0) +
+           color = uhero_green, family = "Gotham", fontface = "bold", hjust = 0, size = 6.5) +
   geom_hline(yintercept = 90, linetype = "dashed", color = uhero_dark_blue, linewidth = 1) + 
   annotate("text", x = 2018, y = 125, label = "ROH Chapter 32's 90-day Shot Clock", 
-           color = uhero_dark_blue, family = "Gotham", fontface = "bold", hjust = 0) +
+           color = uhero_dark_blue, family = "Gotham", fontface = "bold", hjust = 0, size = 6.5) +
   labs(
     title = "MULTIFAMILY PERMIT PROCESSING TIME COMPARISON",
     subtitle = "Honolulu County median days from application to issuance (ROH Chapter 32 vs. Non-ROH Chapter 32)",
@@ -305,7 +308,7 @@ completed_with_totals <- combined_completed %>%
 market_share_plot <- ggplot(completed_with_totals, aes(x = year_created, y = Total_Units, fill = Group)) +
   geom_bar(stat = "identity", position = "stack", width = 0.65) +
   geom_text(aes(label = Label_Text), position = position_stack(vjust = 0.5), 
-            family = "Gotham", fontface = "bold", color = "white", size = 4) +
+            family = "Gotham", fontface = "bold", color = "white", size = 6.5) +
   scale_fill_manual(values = c("Non-ROH Chapter 32 Baseline" = uhero_dark_blue, 
                                "ROH Chapter 32" = uhero_gold)) +
   labs(
@@ -342,7 +345,7 @@ dpp_isolation_plot <- ggplot(active_clean_times, aes(x = year_created, y = Avera
   geom_hline(yintercept = 90, linetype = "dashed", color = uhero_dark_blue, linewidth = 1.2) +
   annotate("text", x = min(active_clean_times$year_created), y = 130, 
            label = "ROH Chapter 32's 90-day Shot Clock (DPP Time)", 
-           color = uhero_dark_blue, family = "Gotham", fontface = "bold", hjust = 0) +
+           color = uhero_dark_blue, family = "Gotham", fontface = "bold", hjust = 0, size = 6.5) +
   scale_fill_manual(values = c("Agency Time (with DPP)" = uhero_gold, 
                                "Developer Time (Revisions)" = uhero_green)) +
   labs(
