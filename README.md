@@ -1,17 +1,18 @@
 # ROH Chapter 32 (Bill 7) Pipeline Analysis
 
-**Author:** Rafael Munoz (UHERO Graduate Assistant)
+**Author:** Rafael Munoz (UHERO Graduate Assistant) w/ Gemini AI Assistance
 **Date:** April 2026  
 
-## Overview
-This repository contains the analysis pipeline, web scrapers, and data compilation scripts used to evaluate the City and County of Honolulu's ROH Chapter 32 (Bill 7) affordable housing program. 
 
-The pipeline compares Chapter 32 multifamily permit processing times and construction volumes against a non-Chapter 32 baseline, isolating developer revision time from agency processing time to track progress against the statutory 90-day shot clock.
+## Overview
+This repository contains the analysis pipeline, scrapers, and data compilation scripts used to evaluate the City and County of Honolulu's ROH Chapter 32 (Bill 7) affordable housing program. 
+
+The pipeline compares Chapter 32 multifamily permit processing times and construction volumes against a non-Chapter 32 baseline, isolating developer revision time from agency processing time to track progress against the 90-day shot clock.
 
 ---
 
 ### Data Location
-To run these scripts, ensure you have access to the UHERO NAS and download/reference the data from the following directory:
+To run these scripts, download the data from the following directory in the UHERO NAS:
 `UHEROroot\work\research\housing\factbook\ROH Chapter 32 Analysis`
 
 **Required Datasets:**
