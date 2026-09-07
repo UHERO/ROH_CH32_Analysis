@@ -44,10 +44,10 @@ theme_uhero <- function(base_size = 14) {
       plot.title = element_text(family = "Gotham", face = "bold", size = 16, color = uhero_dark_blue),
       plot.subtitle = element_text(family = "Gotham", size = 12, color = uhero_gray),
       plot.caption = element_text(family = "Gotham", face = "italic", color = uhero_gray, hjust = 0),
-      axis.title = element_text(family = "Gotham", face = "bold", color = uhero_gray),
-      axis.text = element_text(family = "Gotham", color = uhero_gray),
-      legend.title = element_text(family = "Gotham", face = "bold", color = uhero_gray),
-      legend.text = element_text(family = "Gotham", color = uhero_gray),
+      axis.title = element_text(family = "Gotham", face = "bold", size = 16, color = uhero_gray),
+      axis.text = element_text(family = "Gotham", size = 14, color = uhero_gray),
+      legend.title = element_text(family = "Gotham", size = 16, face = "bold", color = uhero_gray),
+      legend.text = element_text(family = "Gotham", size = 14, color = uhero_gray),
       panel.grid.major.x = element_blank() # Removes vertical grid lines for a cleaner look
     )
 }
@@ -58,7 +58,7 @@ theme_uhero <- function(base_size = 14) {
 # Note: Data is loaded from the local /data directory. 
 # Do not push these files to version control.
 permits_data <- read_csv("data/hnlpermits_with_status_0625.csv")
-roh32_data <- read_csv("data/roh32_complete_cleaned (1).csv")
+roh32_data <- read_csv("data/roh32_by_project_20260903.csv")
 
 # Load newly scraped metrics
 permit_metrics <- read_csv("data/MASTER_Metrics.csv")
@@ -66,10 +66,10 @@ plan_reviews <- read_csv("data/MASTER_Plan_Reviews.csv")
 
 # Ensure Permit Numbers are characters for clean joining/filtering
 permits_data <- permits_data %>% mutate(buildingpermitno = as.character(buildingpermitno))
-roh32_data <- roh32_data %>% mutate(`Building permit #` = as.character(`Building permit #`))
+roh32_data <- roh32_data %>% mutate(primary_permit = as.character(primary_permit))
 
 # Isolate ROH Chapter 32 permit numbers to ensure the baseline is mutually exclusive
-roh32_permit_numbers <- unique(na.omit(roh32_data$`Building permit #`))
+roh32_permit_numbers <- unique(na.omit(roh32_data$primary_permit))
 
 # Define the exact date the Posse system stopped updating
 posse_freeze_date <- as.Date("2025-07-28")
@@ -148,30 +148,37 @@ baseline_mf_data <- permits_data %>%
   filter(numunitsadd > 0, !is.na(numunitsadd))
 
 # =========================================================
-# PREP ROH Chapter 32 DATA
+# PREP ROH Chapter 32 DATA (UPDATED FOR 2026-09-03)
 # =========================================================
 roh32_clean <- roh32_data %>%
+  # Filter out dead projects to match the baseline methodology
+  filter(!status %in% c("Cancelled", "Revoked", "Canceled", "Withdrawn")) %>%
   mutate(
-    BP_App_Date = parse_date_time(`BP Application Date`, orders = c("mdy", "dmy", "ymd")),
+    # Parse the new date format (yyyy-mm-dd)
+    BP_App_Date = ymd(created_date),
     year_created = year(BP_App_Date),
+    
+    # Translate the new `status` column into the old Project_Stage logic
     Project_Stage = case_when(
-      `Project Status` == "C.O. Issued" ~ "Constructed (CO Issued)",
-      `Project Status` == "Building Permit Issued" ~ "Approved & Permitted",
-      str_detect(`Project Status`, "Plans review|Pre-screen") ~ "In Application Review",
+      status == "Completed" ~ "Constructed (CO Issued)",
+      status %in% c("In Progress", "Revision", "SAI", "Pending") & !is.na(issued_date) ~ "Approved & Permitted",
+      status %in% c("In Progress", "Revision", "SAI", "Pending") & is.na(issued_date) ~ "In Application Review",
       TRUE ~ "Unknown"
     ),
     Project_Stage = factor(Project_Stage, levels = c("In Application Review", "Approved & Permitted", "Constructed (CO Issued)")),
+    
     Data_Status = ifelse(year_created >= 2023, "Incomplete/Censored", "Complete"),
-    Group = "ROH Chapter 32"
+    Group = "ROH Chapter 32",
+    
+    # Standardize the new units column back to the old name so the graphs don't break
+    Units = as.numeric(units_added)
   ) %>%
   filter(!is.na(year_created)) %>%
-  # Join our newly calculated time splits & metrics
-  left_join(permit_times, by = c("Application # \n(multi-app)" = "Application_Number")) %>%
-  left_join(permit_metrics, by = c("Application # \n(multi-app)" = "Application_Number")) %>%
+  # Join our calculated time splits & metrics using the new ID column
+  left_join(permit_times, by = c("primary_permit" = "Application_Number")) %>%
+  left_join(permit_metrics, by = c("primary_permit" = "Application_Number")) %>%
   mutate(
-    # Measure inactivity from the last action up to the day the database died
     Days_Since_Last_Action = as.numeric(posse_freeze_date - Last_Action_Date),
-    # FLAG ZOMBIES: It is still in review, AND nothing has happened in > 120 days
     Is_Zombie = ifelse(Project_Stage == "In Application Review" & Days_Since_Last_Action > 120, TRUE, FALSE)
   )
 
@@ -179,7 +186,7 @@ roh32_clean <- roh32_data %>%
 roh32_with_time <- roh32_clean %>%
   left_join(
     permits_data %>% select(buildingpermitno, processing_days, was_approved), 
-    by = c("Building permit #" = "buildingpermitno")
+    by = c("primary_permit" = "buildingpermitno")
   )
 
 # =========================================================
