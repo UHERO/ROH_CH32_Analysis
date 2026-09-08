@@ -1,8 +1,8 @@
 # Honolulu Affordable Housing Policy Evaluation (ROH Chapter 32)
 
 **Author:** Rafael Munoz with Gemini AI Assistance
-**Role:** Graduate Research Assistant, UHERO (University of Hawaii Economic Research Organization)  
-**Date:** April 2026  
+**Role:** Graduate Research Assistant, UHERO (University of Hawai'i Economic Research Organization)  
+**Date:** April 2026
 
 ## Executive Summary
 This repository contains the end-to-end data pipeline, geospatial analysis, and automated web scrapers used to evaluate the economic feasibility and bureaucratic processing efficiency of the City and County of Honolulu's ROH Chapter 32 (Bill 7) affordable housing program.
@@ -48,4 +48,4 @@ The pipeline must be executed sequentially to ensure data continuity:
 Execution of the pipeline generates institutional-grade deliverables into the `/outputs/` directory.
 
 ## Data Access Limitations
-The raw datasets (e.g., `hnlpermits_with_status_0625.csv`, `renthub_combined_2024_2026.csv`) are proprietary/internal to UHERO and the City of Honolulu, and are therefore omitted from this repository via `.gitignore`. The code is provided to demonstrate the pipeline architecture and spatial analysis methodology.
+The raw datasets (e.g., `hnlpermits_with_status_0625.csv`, `renthub_combined_2024_2026.csv`) are proprietary/internal to UHERO, and are therefore omitted from this repository.
