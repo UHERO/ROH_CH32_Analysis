@@ -1,6 +1,6 @@
 # Honolulu Affordable Housing Policy Evaluation (ROH Chapter 32)
 
-**Author:** Rafael Munoz with Gemini AI Assistance
+**Author:** Rafael Munoz with Gemini AI Assistance. 
 **Role:** Graduate Research Assistant, UHERO (University of Hawai'i Economic Research Organization)  
 **Date:** April 2026
 
