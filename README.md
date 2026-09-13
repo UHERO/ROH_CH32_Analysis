@@ -48,11 +48,11 @@ The scripts must be executed in the following sequential order to ensure data in
 4. **Visualization:** Run `renthub_visualizations.R` and `roh_ch32_analysis.R` to render the final UHERO-branded graphics.
 
 ## Outputs
-Execution of the pipeline generates institutional-grade deliverables into the `/outputs/` directory. Some examples:
+Execution of the pipeline generates visualizations into the `/outputs/` directory. Samples:
 
-<img width="1668" height="1284" alt="image" src="https://github.com/user-attachments/assets/3aaebb0f-80ce-41dd-bb03-7f8b8f95572a" />
+<img width="1996" height="1504" alt="image" src="https://github.com/user-attachments/assets/992b16c6-0a4c-42ff-aa94-dfd90c821b5f" />
 
-<img width="1668" height="1284" alt="image" src="https://github.com/user-attachments/assets/48ec1cbc-068c-4851-a78a-a6b016b8fa05" />
+<img width="1996" height="1504" alt="image" src="https://github.com/user-attachments/assets/99696275-6043-4af8-ad41-60c1e4199ecf" />
 
 ## Data Access Limitations
 The raw datasets (e.g., `hnlpermits_with_status_0625.csv`, `renthub_combined_2024_2026.csv`) are proprietary/internal to UHERO, and are therefore omitted from this repository.
