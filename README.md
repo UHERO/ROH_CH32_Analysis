@@ -2,7 +2,7 @@
 
 **Author:** Rafael Munoz with Gemini AI Assistance. 
 **Role:** Graduate Research Assistant, UHERO (University of Hawai'i Economic Research Organization)  
-**Date:** April 2026
+**Date:** September 2026
 
 ## Executive Summary
 This repository contains the end-to-end data work, geospatial analysis, and automated web scrapers used to evaluate the economic feasibility and bureaucratic processing efficiency of the City and County of Honolulu's ROH Chapter 32 (Bill 7) affordable housing program.
