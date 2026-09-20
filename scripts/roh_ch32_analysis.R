@@ -338,8 +338,8 @@ print(market_share_plot)
 # GRAPH 5: ISOLATING DPP VS. DEVELOPER TIME (ROH 32)
 # =========================================================
 active_clean_times <- roh32_clean %>%
-  # Exclude zombies and canceled projects from the time math
-  filter(!is.na(DPP_Days), Is_Zombie == FALSE, Project_Stage != "Canceled/Withdrawn") %>%
+  # Exclude zombies, canceled projects, AND partial/misleading 2025+ data
+  filter(!is.na(DPP_Days), Is_Zombie == FALSE, Project_Stage != "Canceled/Withdrawn", year_created < 2025) %>%
   group_by(year_created) %>%
   summarize(
     `Agency Time (with DPP)` = mean(DPP_Days, na.rm = TRUE),
