@@ -354,11 +354,11 @@ dpp_isolation_plot <- ggplot(active_clean_times, aes(x = year_created, y = Avera
   geom_bar(stat = "identity", position = "stack", width = 0.65) +
   geom_text(aes(label = ifelse(Average_Days > 0, round(Average_Days), "")), 
             position = position_stack(vjust = 0.5), 
-            color = "white", family = "Gotham", fontface = "bold", size = 5) +
-  geom_hline(yintercept = 90, linetype = "dashed", color = uhero_dark_blue, linewidth = 1.2) +
-  annotate("text", x = min(active_clean_times$year_created), y = 130, 
-           label = "ROH Chapter 32's 90-day Shot Clock (DPP Time)", 
-           color = uhero_dark_blue, family = "Gotham", fontface = "bold", hjust = 0, size = 6.5) +
+            color = "white", family = "Gotham", fontface = "bold", size = 6) +
+  geom_hline(yintercept = 90, linetype = "dashed", color = uhero_dark_blue, linewidth = 0.8) +
+  annotate("text", x = min(active_clean_times$year_created), y = 60, 
+           label = "90-day Shot Clock", 
+           color = uhero_dark_blue, family = "Gotham", fontface = "bold", hjust = 0, size = 5) +
   scale_fill_manual(values = c("Agency Time (with DPP)" = uhero_gold, 
                                "Developer Time (Revisions)" = uhero_green)) +
   labs(
