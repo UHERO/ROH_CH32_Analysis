@@ -47,9 +47,13 @@ EXPORT_FILE = "permits_and_activity_by_tmk_plus_parcel_redacted_no_high_risk_com
 DATE_PLACEHOLDERS = ["mmm dd, yyyy", "There is no plan review information available for this permit."]
 # Possible names for the outcome column in the scraped Posse table
 MASTER_OUTCOME_CANDIDATES = ["Outcome", "Review Outcome", "Result", "Status"]
-# Reviews that aren't part of the core plan-conformance rounds
+# Core plan-conformance disciplines, under the export's names. Scraped Posse names
+# (e.g., "Building Code", "Fire Code (HFD)") are mapped to these. Set to None to keep all.
+CORE_DISCIPLINES = ["BLDG", "Electrical", "Fire", "Mechanical", "TRB", "WWB", "ZPRB"]
+DISCIPLINE_ALIASES = {"Building Code": "BLDG", "Electrical Code": "Electrical",
+                      "Mechanical Code": "Mechanical", "HFD": "Fire"}
+# Review types that aren't part of the plan-conformance rounds
 NON_CORE_PATTERN = "revised or shop|Flood|Over the Counter"
-NON_CORE_DISCIPLINES = ["DOH-AC Ventilation", "DOH-Wastewater", "BWS"]
 
 
 # =========================================================
@@ -121,8 +125,11 @@ def prep_core_reviews(reviews, projects):
     """Keep core plan-conformance reviews for Bill 7 permits and number the rounds
     within each permit x discipline."""
     c = reviews[reviews.permit_number.isin(projects.primary_permit) & reviews.rec.notna()].copy()
-    c["disc"] = c.review_type.str.extract(r"\(([^)]+)\)")[0].fillna(c.review_type)
-    c = c[~c.review_type.str.contains(NON_CORE_PATTERN, na=False) & ~c.disc.isin(NON_CORE_DISCIPLINES)]
+    disc = c.review_type.str.extract(r"\(([^)]+)\)")[0].fillna(c.review_type)
+    c["disc"] = disc.replace(DISCIPLINE_ALIASES)
+    c = c[~c.review_type.str.contains(NON_CORE_PATTERN, na=False)]
+    if CORE_DISCIPLINES is not None:
+        c = c[c.disc.isin(CORE_DISCIPLINES)]
 
     outcome = c.outcome.astype("string").fillna("")
     c["has_outcome"] = outcome.ne("").any()

@@ -8,7 +8,7 @@
 #     1. Coverage: which Bill 7 projects have review records
 #     2. Date integrity: missing, reversed, or post-freeze dates
 #     3. Sensitivity: do the headline numbers move if non-core reviews
-#        (shop drawings, DOH, BWS) are kept?
+#        (shop drawings, DOH, BWS, CEB, DOE impact fee) are kept?
 #
 # USAGE (from the repo root; same options as permit_rounds.py):
 #   python scripts/permit_rounds_checks.py [--source auto|master|export] [--data-dir data]
@@ -56,12 +56,12 @@ def main():
 
     # ---- 3. Sensitivity to the core-review filter
     core = pr.prep_core_reviews(reviews, projects)
-    original_pattern, original_discs = pr.NON_CORE_PATTERN, pr.NON_CORE_DISCIPLINES
-    pr.NON_CORE_PATTERN, pr.NON_CORE_DISCIPLINES = "^$", []
+    original_pattern, original_discs = pr.NON_CORE_PATTERN, pr.CORE_DISCIPLINES
+    pr.NON_CORE_PATTERN, pr.CORE_DISCIPLINES = "^$", None
     try:
         all_reviews = pr.prep_core_reviews(reviews, projects)
     finally:
-        pr.NON_CORE_PATTERN, pr.NON_CORE_DISCIPLINES = original_pattern, original_discs
+        pr.NON_CORE_PATTERN, pr.CORE_DISCIPLINES = original_pattern, original_discs
 
     def headline(c):
         _, per_project = pr.rounds_per_discipline(c)

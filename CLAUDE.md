@@ -32,7 +32,21 @@ The author made one branch per analysis, but **every branch has already been mer
 
 ## Data (`data/`, local only)
 
-As of 2026-10-16, the local `data/` folder holds two files, provided by the user. Most of the inputs the scripts expect are **not** present (see the pipeline table). Ask for missing files rather than inventing stand-ins.
+As of 2026-10-16, the local `data/` folder holds four files: the two described below, provided by the user, and the two `MASTER_*.csv` files re-scraped by Claude (see the next paragraph). Most of the other inputs the scripts expect are **not** present (see the pipeline table). Ask for missing files rather than inventing stand-ins.
+
+**`MASTER_Plan_Reviews.csv` and `MASTER_Metrics.csv`** were re-scraped from the public Posse site on 2026-10-16 with Rafael's scraper and compiler, unmodified except for how the browser driver starts.
+- They cover 61 of the scraper's 65 applications. The 4 `MA-` master applications fail: the job-search page's search box never appears.
+- The site's review data stop at 2025-07-28.
+- They reproduce the draft's Figure 4 exactly.
+- `MASTER_Metrics.csv` has DPP's own milestones per application: application accepted, permit ready for pickup, issued, and "Days Waiting for Pickup".
+- Rafael's own copies, if he sends them, should match. Compare before replacing.
+
+Running the scraper on this machine:
+- The `scraping` env has Selenium 4.25 but **not** `webdriver-manager`, and Chrome isn't installed system-wide. Selenium's cached Chrome for Testing and chromedriver are in `~/.cache/selenium/` (v142).
+- So run the scraper through a wrapper that swaps the `ChromeDriverManager` lines for `Service(executable_path=...)` with `Options.binary_location`, running headless. Don't edit the committed script.
+- The scraper writes to the current directory. Run it in a scratch folder.
+- `dpp_csv_compiler.py` crashes on Windows when printing its ✅ emoji (cp1252 console). Run it with `PYTHONIOENCODING=utf-8`.
+- Windows filename matching ignores case, so the compiler's `*_metrics.csv` / `*_plan_reviews.csv` searches also match its own `MASTER_*` outputs. **Run it once, in a folder without old MASTER files**, or the metrics rows get duplicated.
 
 **`roh32_by_project_20260903.csv`**: DPP's list of ROH 32 projects. It has 85 rows, one per project, keyed by `primary_permit` and `tmk`, an 8-digit TMK.
 - It's an updated version of the file the author used for the pipeline graphs. It was renamed on 2026-10-16 so that `roh_ch32_analysis.R` finds it. **The date in the name is the old snapshot's, not this file's.** This file runs to late September 2026.
@@ -81,7 +95,8 @@ As of 2026-10-16, the local `data/` folder holds two files, provided by the user
 `permit_rounds.py` supports the rewrite of the permitting section; the plan and draft text are in `docs/permitting_section_plan.md`.
 - Run it with the `base` or `scraping` env (it needs only pandas), from the repo root: `C:\Users\curly\miniconda3\python.exe scripts\permit_rounds.py`.
 - On the scraped file, it looks for an outcome column named `Outcome`, `Review Outcome`, `Result` or `Status`. If it finds none, it skips the approval-based sections (first approvals, reopened reviews), so check the first lines of its output.
-- Its numbers as of 2026-10-16 come from the export (50 of 85 projects) and are provisional until it's re-run on Rafael's `MASTER_Plan_Reviews.csv`.
+- With `data/MASTER_Plan_Reviews.csv` present it uses the scraped reviews (59 of 85 projects have reviews). `--source export` forces the April export (50 projects).
+- Scraped discipline names ("Building Code", "Fire Code (HFD)") are mapped to the export's codes (`DISCIPLINE_ALIASES`), and only the seven core disciplines in `CORE_DISCIPLINES` are counted.
 
 ## Which report sections this repo feeds (`docs/`)
 
@@ -94,7 +109,7 @@ Most of the final brief comes from UHERO's Housing Policy Simulator, which is **
 | Brief section | Content | Source here |
 |---|---|---|
 | Final: Executive Summary, Background, **Figure 1** "Bill 7 Pipeline, 2019 to 2026" | 85 projects / 2,280 units; 7 completed / 224 units; 22 permitted / 776 units; 2023 peak of 475 units, over ¼ of proposed multifamily units citywide; 274 withdrawn units | Graph 2 (pipeline) and Graphs 1 and 4 (CH32 share of all multifamily) in `roh_ch32_analysis.R`, built on `roh32_by_project` |
-| Final: Discussion, "Permit delays…", **Figure 4** "Time with Agency vs. Developer" | Figure 4 bars, agency / developer days: 2019 236/370, 2020 131/1059, 2021 161/290, 2022 234/391, 2023 154/519, 2024 88/184. "167 days" is the unweighted mean of the six agency bars. The text's "140 agency / 350 developer" doesn't match the current figure; it probably predates the 2026-09-20 commit that added `year_created < 2025`. The `graph5_summary` printout at the end of the script shows project-level vs. cohort-year averages, with and without the 2025+ cohorts. Run it on the author's scraped data to settle which number the text should use. 120-day abandonment rule; data through July 2025 | Graph 5 in `roh_ch32_analysis.R`, built on the scraped plan reviews |
+| Final: Discussion, "Permit delays…", **Figure 4** "Time with Agency vs. Developer" | Figure 4 bars, agency / developer days: 2019 236/370, 2020 131/1059, 2021 161/290, 2022 234/391, 2023 154/519, 2024 88/184. "167 days" is the unweighted mean of the six agency bars. The text's "140 agency / 350 developer" is the **project-level average from before** the 2026-09-20 commit that added `year_created < 2025` (re-scrape: 141 / 349). For the current figure it's 157 / 406 project-level, or 167 / 469 cohort-year. That was confirmed with `graph5_summary` on the re-scraped data. 120-day abandonment rule; data through July 2025 | Graph 5 in `roh_ch32_analysis.R`, built on the scraped plan reviews |
 | Final: same section | "Bill 7 projects have taken roughly as long to get their permits as other multifamily projects" | Graph 3 (processing time compared with the baseline) |
 | Final: Findings, "How program parameters affect feasibility" | Advertised rents 14–34% below the 100% AMI limit, from 100+ listings across 5 projects | `renthub_market_analysis.R` / `renthub_visualizations.R`, confirmed by the user (likely the exact-match comparison behind the dumbbell plot) |
 | Preliminary: "Production volume and pipeline" | Pipeline chart; 189 units built; share of multifamily | Graph 2 (older data) |
