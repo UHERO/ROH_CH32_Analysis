@@ -32,7 +32,10 @@ The author made one branch per analysis, but **every branch has already been mer
 
 ## Data (`data/`, local only)
 
-As of 2026-10-16, the local `data/` folder holds four files: the two described below, provided by the user, and the two `MASTER_*.csv` files re-scraped by Claude (see the next paragraph). Most of the other inputs the scripts expect are **not** present (see the pipeline table). Ask for missing files rather than inventing stand-ins.
+As of 2026-10-16, the local `data/` folder holds five files:
+- the two files described below, provided by the user;
+- the two `MASTER_*.csv` files re-scraped by Claude (see the next paragraph);
+- `honolulu_bp_newbuilding_2018_2025.csv`: new-building permits created from 2018 on, from DPP's **public** permit snapshot (data.honolulu.gov `4vab-c87q`, "Building Permits – January 1, 2005 through June 30, 2025"). It's evidently the source of Rafael's `hnlpermits_with_status_0625.csv`: Graph 3's issued-only medians reproduce from it. Bill 7 permits match on `externalfilenum` = `primary_permit`. Most of the other inputs the scripts expect are **not** present (see the pipeline table). Ask for missing files rather than inventing stand-ins.
 
 **`MASTER_Plan_Reviews.csv` and `MASTER_Metrics.csv`** were re-scraped from the public Posse site on 2026-10-16 with Rafael's scraper and compiler, unmodified except for how the browser driver starts.
 - They cover 61 of the scraper's 65 applications. The 4 `MA-` master applications fail: the job-search page's search box never appears.
@@ -89,6 +92,7 @@ Running the scraper on this machine:
 | `roh_ch32_analysis.R` (main report graphs 1–5) | the permits CSV, `data/roh32_by_project_20260903.csv`, the old CH32 CSV (to recover unit counts), `data/MASTER_*.csv` | nothing. Plots go to the viewer with `print()`, not `ggsave`. |
 | `permit_rounds.py` (added 2026-10-16) | `data/roh32_by_project_20260903.csv`, plus `data/MASTER_Plan_Reviews.csv` if present, otherwise the April 2026 export (`--source auto\|master\|export`, `--data-dir`) | nothing. It prints review rounds, turnaround, applicant response, reopened reviews, first-round lag, and final-review-to-issuance gaps. |
 | `permit_rounds_checks.py` | same as above; imports `permit_rounds.py` | nothing. It prints coverage, date-integrity, and core-vs-all-reviews sensitivity checks. |
+| `baseline_permit_times.py` (added 2026-10-16) | `data/honolulu_bp_newbuilding_2018_2025.csv` (re-download with `--download`), `data/roh32_by_project_20260903.csv`, and `data/MASTER_Plan_Reviews.csv` (optional, for the dormancy check) | nothing. It prints Bill 7 vs. other multifamily times from application to issuance: Kaplan–Meier shares issued within 1 and 2 years, plus Graph 3-style issued-only medians. |
 
 `roh_ch32_analysis.R` is the script under active revision; recent commits change Graph 5 in response to report comments.
 

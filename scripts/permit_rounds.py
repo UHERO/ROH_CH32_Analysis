@@ -209,6 +209,51 @@ def first_round_spread(c):
     return r1
 
 
+def project_cycles(reviews, projects, issued_ids, tolerances=(0, 7, 14)):
+    """Project-level review cycles, all disciplines: merge review windows that start within
+    `tol` days of the previous window's end. Merged spans = agency time; gaps = applicant time.
+    With tol = 14 this approximates DPP's column (7+ cycles, ~36 agency days per cycle)."""
+    r = reviews[reviews.permit_number.isin(issued_ids) & reviews.rec.notna()].copy()
+    r["done"] = r.done.fillna(POSSE_FREEZE_DATE).clip(lower=r.rec)
+    rows = []
+    for tol in tolerances:
+        for permit, g in r.sort_values("rec").groupby("permit_number"):
+            spans = []
+            for rec, done in zip(g.rec, g.done):
+                if spans and rec <= spans[-1][1] + pd.Timedelta(days=tol):
+                    spans[-1][1] = max(spans[-1][1], done)
+                else:
+                    spans.append([rec, done])
+            agency = sum((e - b).days + 1 for b, e in spans)
+            gaps = [(spans[i + 1][0] - spans[i][1]).days - 1 for i in range(len(spans) - 1)]
+            rows.append({"merge_within_days": tol, "permit": permit, "cycles": len(spans),
+                         "agency_days": agency, "applicant_days": sum(gaps),
+                         "agency_per_cycle": agency / len(spans),
+                         "applicant_per_gap": sum(gaps) / len(gaps) if gaps else np.nan})
+    return pd.DataFrame(rows).groupby("merge_within_days").agg(
+        permits=("permit", "nunique"), cycles_mean=("cycles", "mean"), cycles_median=("cycles", "median"),
+        agency_days=("agency_days", "mean"), agency_per_cycle=("agency_per_cycle", "mean"),
+        applicant_days=("applicant_days", "mean"), applicant_per_gap=("applicant_per_gap", "mean"))
+
+
+def posse_milestones(data_dir, projects):
+    """Posse 'Metrics' tab milestones per application (MASTER_Metrics.csv), if present."""
+    path = Path(data_dir) / "MASTER_Metrics.csv"
+    if not path.exists():
+        return None
+    m = pd.read_csv(path, dtype=str)
+    m = m[m.Application_Number.isin(projects.primary_permit)].copy()
+    day_cols = [c for c in m.columns if c.startswith("Days ") or c == "Total Days to Issue"]
+    for col in day_cols:
+        m[col] = pd.to_numeric(m[col], errors="coerce")
+    for col in ["Application Submitted, Unchecked", "Application Accepted by DPP",
+                "Permit Ready for Pickup", "Permit Issued"]:
+        m[col] = pd.to_datetime(m[col], format="%b %d, %Y", errors="coerce")
+    m["app_year"] = m["Application Submitted, Unchecked"].dt.year
+    m["accepted_to_ready"] = (m["Permit Ready for Pickup"] - m["Application Accepted by DPP"]).dt.days
+    return m, day_cols
+
+
 def review_to_issuance(c, projects):
     """Final review completion to permit issuance. Only meaningful for permits issued
     before the Posse freeze; later reviews aren't in the data."""
@@ -233,7 +278,8 @@ def main():
     pd.set_option("display.width", 200)
 
     projects = load_projects(args.data_dir)
-    c = prep_core_reviews(load_reviews(args.data_dir, args.source), projects)
+    reviews = load_reviews(args.data_dir, args.source)
+    c = prep_core_reviews(reviews, projects)
     has_outcome = bool(c.has_outcome.any())
     print(f"Projects with reviews: {c.permit_number.nunique()} of {len(projects)}; core reviews: {len(c)}")
 
@@ -282,6 +328,22 @@ def main():
           f"mean {pre.app_to_issue.mean():.0f} days")
     print(f"({(~g.issued_before_freeze).sum()} permits issued after the freeze are excluded: "
           f"their final reviews aren't in the data.)")
+
+    issued_ids = set(pre.index)
+    print(f"\n[7] Project-level review cycles (all disciplines), permits issued before the freeze:")
+    print(project_cycles(reviews, projects, issued_ids).round(1).to_string())
+    print("DPP column for comparison: 7+ cycles, 36 agency days/cycle, 46 applicant days/response.")
+
+    milestones = posse_milestones(args.data_dir, projects)
+    if milestones is not None:
+        m, day_cols = milestones
+        issued_m = m[m["Permit Issued"].notna()]
+        print(f"\n[8] Posse milestone metrics (MASTER_Metrics.csv), issued permits (n={len(issued_m)}):")
+        print(issued_m[day_cols].agg(["mean", "median"]).round(0).to_string())
+        print(f"Acceptance -> ready for pickup: median {issued_m.accepted_to_ready.median():.0f} days; "
+              f"within 90 days: {(issued_m.accepted_to_ready <= 90).sum()} of {len(issued_m)}")
+        print("\nDays in Pre-Submission Queue by application year (all applications):")
+        print(m.groupby("app_year")["Days in Pre-Submission Queue"].agg(["count", "median", "mean"]).round(0).to_string())
 
 
 if __name__ == "__main__":
