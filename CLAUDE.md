@@ -34,8 +34,8 @@ The author made one branch per analysis, but **every branch has already been mer
 
 As of 2026-10-16, the local `data/` folder holds two files, provided by the user. Most of the inputs the scripts expect are **not** present (see the pipeline table). Ask for missing files rather than inventing stand-ins.
 
-**`roh32_by_project.csv`**: DPP's list of ROH 32 projects. It has 85 rows, one per project, keyed by `primary_permit` and `tmk`, an 8-digit TMK.
-- It's an updated version of the file the author used for the pipeline graphs. `roh_ch32_analysis.R` reads it as `data/roh32_by_project_20260903.csv`, so **renaming it or editing that path is needed before the script runs**.
+**`roh32_by_project_20260903.csv`**: DPP's list of ROH 32 projects. It has 85 rows, one per project, keyed by `primary_permit` and `tmk`, an 8-digit TMK.
+- It's an updated version of the file the author used for the pipeline graphs. It was renamed on 2026-10-16 so that `roh_ch32_analysis.R` finds it. **The date in the name is the old snapshot's, not this file's.** This file runs to late September 2026.
 - It has every column the script uses (`primary_permit`, `tmk`, `created_date`, `status`, `issued_date`, `units_added`) and only status values the script's `case_when` handles.
 - The latest dates in it are issued 2026-09-22 and accepted 2026-09-24.
 - It reproduces the draft final brief's figures: 85 projects, 7 completed projects with 224 units, and 475 units applied for in 2023. It shows 23 projects and 812 units permitted but not completed, against the brief's 22 and 776 "as of September 2026". The difference is probably one permit issued after the 2026-09-03 snapshot.
@@ -45,7 +45,11 @@ As of 2026-10-16, the local `data/` folder holds two files, provided by the user
 **`permits_and_activity_by_tmk_plus_parcel_redacted_no_high_risk_comments.csv`**: a cleaned export of DPP building-permit records from April 2026 (latest `LastModifiedDate` is 2026-04-18).
 - The records are from POSSE, DPP's old system, but the fields are named in the new Salesforce/Clariti style (`MUSW__*`, `clariti__*`, `*__c`). `Legacy_Permit_Name__c` holds the old POSSE number.
 - There is **one row per permit × plan-review activity**: 1,723 rows covering 329 permits. Permit fields come first, then the review fields.
-- The review fields include `Review_Type__c`, `Date_Plans_Received__c`, `Date_Completed__c` and `Status__c`. They run from 2018-10 to 2025-07-28, the date of `posse_freeze_date`. These are the same timelines the scraper pulled from the Posse "Plan Reviews" tab, so this file could stand in for `MASTER_Plan_Reviews.csv` in Graph 5.
+- The review fields include `Review_Type__c`, `Date_Plans_Received__c`, `Date_Completed__c` and `Status__c`. They run from 2018-10 to 2025-07-28, the date of `posse_freeze_date`. These are the same per-discipline review timelines the scraper pulled from the Posse "Plan Reviews" tab, but the file is **not a drop-in replacement** for `MASTER_Plan_Reviews.csv`:
+  - Running Graph 5's math on it as-is gives agency times about 3× Figure 4's. Reviews with no `Date_Completed__c` (170 rows that are In Progress or Pending, many of them post-issuance shop drawings) get extended to the freeze date.
+  - Keeping only completed reviews brings the yearly bars close to Figure 4 (2019: 222 vs 236; 2024: 74 vs 88), but they still don't match.
+  - Only 50 of the 85 projects have review rows here.
+  - The timestamps are migration artifacts. Use the stored calendar date (`substr(x, 1, 10)`), not an HST conversion, which puts some completions before receipt.
 - Column names repeat between the two halves (`Id`, `Name`, `CreatedDate`, `input_tmk`, …). pandas renames the second copy to `Id.1`; readr renames copies to `Id...123`. Select columns by position or rename them right after reading.
 - The file is **not countywide**. It covers permits on the parcels of ROH 32 projects only: `match_source` is `TMK_MATCH` or `PARCEL_EXPANSION`. It includes 57 of the 85 projects, plus demolition, fence, trenching and other permits on the same lots.
 - So it can't replace `hnlpermits_with_status_0625.csv` for the non-CH32 baseline, which needs all multifamily permits on Oʻahu.
@@ -83,9 +87,9 @@ Most of the final brief comes from UHERO's Housing Policy Simulator, which is **
 | Brief section | Content | Source here |
 |---|---|---|
 | Final: Executive Summary, Background, **Figure 1** "Bill 7 Pipeline, 2019 to 2026" | 85 projects / 2,280 units; 7 completed / 224 units; 22 permitted / 776 units; 2023 peak of 475 units, over ¼ of proposed multifamily units citywide; 274 withdrawn units | Graph 2 (pipeline) and Graphs 1 and 4 (CH32 share of all multifamily) in `roh_ch32_analysis.R`, built on `roh32_by_project` |
-| Final: Discussion, "Permit delays…", **Figure 4** "Time with Agency vs. Developer" | Developer time ~350 days vs. agency time ~140 (also given as 167); 2024 cohort low of 88 days; 120-day abandonment rule; data through July 2025 | Graph 5 in `roh_ch32_analysis.R`, built on the scraped plan reviews |
+| Final: Discussion, "Permit delays…", **Figure 4** "Time with Agency vs. Developer" | Figure 4 bars, agency / developer days: 2019 236/370, 2020 131/1059, 2021 161/290, 2022 234/391, 2023 154/519, 2024 88/184. "167 days" is the unweighted mean of the six agency bars. The text's "140 agency / 350 developer" doesn't match the current figure; it probably predates the 2026-09-20 commit that added `year_created < 2025`. The `graph5_summary` printout at the end of the script shows project-level vs. cohort-year averages, with and without the 2025+ cohorts. Run it on the author's scraped data to settle which number the text should use. 120-day abandonment rule; data through July 2025 | Graph 5 in `roh_ch32_analysis.R`, built on the scraped plan reviews |
 | Final: same section | "Bill 7 projects have taken roughly as long to get their permits as other multifamily projects" | Graph 3 (processing time compared with the baseline) |
-| Final: Findings, "How program parameters affect feasibility" | Advertised rents 14–34% below the 100% AMI limit, from 100+ listings across 5 projects | Probably the exact-match rent comparison (dumbbell plot) in `renthub_market_analysis.R` / `renthub_visualizations.R`. Confirm with the user. |
+| Final: Findings, "How program parameters affect feasibility" | Advertised rents 14–34% below the 100% AMI limit, from 100+ listings across 5 projects | `renthub_market_analysis.R` / `renthub_visualizations.R`, confirmed by the user (likely the exact-match comparison behind the dumbbell plot) |
 | Preliminary: "Production volume and pipeline" | Pipeline chart; 189 units built; share of multifamily | Graph 2 (older data) |
 | Preliminary: "Permitting times" | Processing-time chart; medians of 518–1,000 days for mature cohorts; 19 of 59 pending projects permitted, averaging 661 days (median 548) | Graph 3 |
 

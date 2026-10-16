@@ -370,6 +370,57 @@ dpp_isolation_plot <- ggplot(active_clean_times, aes(x = year_created, y = Avera
     fill = ""
   ) +
   scale_x_continuous(breaks = seq(min(active_clean_times$year_created), max(active_clean_times$year_created), by = 1)) +
-  theme_uhero() 
+  theme_uhero()
 
 print(dpp_isolation_plot)
+
+# =========================================================
+# GRAPH 5 SUMMARY: AVERAGES QUOTED IN THE REPORT TEXT
+# =========================================================
+# Two ways to average the same data give different numbers:
+#   - Project-level: every project counts once (years with more projects weigh more)
+#   - Cohort-year: the plain average of the yearly bars in Graph 5 (each year counts once)
+# The "with 2025+" rows show the numbers before 2025+ cohorts were excluded,
+# since those cohorts are right-censored and pull the averages down.
+summarize_graph5_times <- function(projects, label) {
+  project_level <- projects %>%
+    summarize(
+      Projects = n(),
+      Agency_Days = mean(DPP_Days, na.rm = TRUE),
+      Developer_Days = mean(Developer_Days, na.rm = TRUE)
+    ) %>%
+    mutate(Average = "Project-level")
+
+  cohort_year <- projects %>%
+    group_by(year_created) %>%
+    summarize(
+      Projects = n(),
+      Agency_Days = mean(DPP_Days, na.rm = TRUE),
+      Developer_Days = mean(Developer_Days, na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    summarize(
+      Projects = sum(Projects),
+      Agency_Days = mean(Agency_Days),
+      Developer_Days = mean(Developer_Days)
+    ) %>%
+    mutate(Average = "Cohort-year")
+
+  bind_rows(project_level, cohort_year) %>%
+    mutate(
+      Sample = label,
+      Developer_to_Agency = round(Developer_Days / Agency_Days, 2),
+      across(c(Agency_Days, Developer_Days), round)
+    ) %>%
+    select(Sample, Average, Projects, Agency_Days, Developer_Days, Developer_to_Agency)
+}
+
+graph5_projects <- roh32_clean %>%
+  filter(!is.na(DPP_Days), Is_Zombie == FALSE, Project_Stage != "Canceled/Withdrawn")
+
+graph5_summary <- bind_rows(
+  summarize_graph5_times(graph5_projects %>% filter(year_created < 2025), "Graph 5 (pre-2025 cohorts)"),
+  summarize_graph5_times(graph5_projects, "With 2025+ cohorts")
+)
+
+print(graph5_summary)
