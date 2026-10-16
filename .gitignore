@@ -3,6 +3,9 @@ data/
 *.csv
 *.xlsx
 
+# Ignore internal report drafts (not for public distribution)
+docs/
+
 # Ignore exported plots
 outputs/
 *.png

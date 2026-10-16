@@ -23,10 +23,38 @@ The author made one branch per analysis, but **every branch has already been mer
 - For a new analysis, start a fresh branch from the current `main`.
 - The repo was moved from `rafaelcbmunoz-sudo/ROH_CH32_Analysis` to `UHERO/ROH_CH32_Analysis`. Old merge messages still name the old URL.
 
+## Confidentiality
+
+**The GitHub repo is public.** Never commit `data/` or `docs/`.
+- `data/` is gitignored, along with all `*.csv`, `*.xlsx`, `*.png` and `*.jpg` files. The data is internal to UHERO and lives on the NAS.
+- `docs/` is gitignored too. It holds internal drafts, and the preliminary brief is marked "not for public distribution". Never force-add it (`git add -f`). Check `git status` before any `git add`.
+- Don't paste rows of the permits export into commits, issues or PRs.
+
+## Data (`data/`, local only)
+
+As of 2026-10-16, the local `data/` folder holds two files, provided by the user. Most of the inputs the scripts expect are **not** present (see the pipeline table). Ask for missing files rather than inventing stand-ins.
+
+**`roh32_by_project.csv`**: DPP's list of ROH 32 projects. It has 85 rows, one per project, keyed by `primary_permit` and `tmk`, an 8-digit TMK.
+- It's an updated version of the file the author used for the pipeline graphs. `roh_ch32_analysis.R` reads it as `data/roh32_by_project_20260903.csv`, so **renaming it or editing that path is needed before the script runs**.
+- It has every column the script uses (`primary_permit`, `tmk`, `created_date`, `status`, `issued_date`, `units_added`) and only status values the script's `case_when` handles.
+- The latest dates in it are issued 2026-09-22 and accepted 2026-09-24.
+- It reproduces the draft final brief's figures: 85 projects, 7 completed projects with 224 units, and 475 units applied for in 2023. It shows 23 projects and 812 units permitted but not completed, against the brief's 22 and 776 "as of September 2026". The difference is probably one permit issued after the 2026-09-03 snapshot.
+- Since July 2025, new permits are numbered `BP-YYYY-NNNNNN` (14 projects) rather than `AYYYY-MM-NNNN`. The scraper's `app_list` covers neither these nor the other 2025 additions. It also lists 6 IDs that aren't in this file, mostly `MA-` master applications.
+- It does **not** have the columns that `baseline-comparison-export.R`, `council_district_analysis.R` and `renthub_market_analysis.R` read from `roh32_complete_cleaned (1).csv` (`Building permit #`, `TMK`, `Units`, `geometry`). Those scripts still need the old file.
+
+**`permits_and_activity_by_tmk_plus_parcel_redacted_no_high_risk_comments.csv`**: a cleaned export of DPP building-permit records from April 2026 (latest `LastModifiedDate` is 2026-04-18).
+- The records are from POSSE, DPP's old system, but the fields are named in the new Salesforce/Clariti style (`MUSW__*`, `clariti__*`, `*__c`). `Legacy_Permit_Name__c` holds the old POSSE number.
+- There is **one row per permit × plan-review activity**: 1,723 rows covering 329 permits. Permit fields come first, then the review fields.
+- The review fields include `Review_Type__c`, `Date_Plans_Received__c`, `Date_Completed__c` and `Status__c`. They run from 2018-10 to 2025-07-28, the date of `posse_freeze_date`. These are the same timelines the scraper pulled from the Posse "Plan Reviews" tab, so this file could stand in for `MASTER_Plan_Reviews.csv` in Graph 5.
+- Column names repeat between the two halves (`Id`, `Name`, `CreatedDate`, `input_tmk`, …). pandas renames the second copy to `Id.1`; readr renames copies to `Id...123`. Select columns by position or rename them right after reading.
+- The file is **not countywide**. It covers permits on the parcels of ROH 32 projects only: `match_source` is `TMK_MATCH` or `PARCEL_EXPANSION`. It includes 57 of the 85 projects, plus demolition, fence, trenching and other permits on the same lots.
+- So it can't replace `hnlpermits_with_status_0625.csv` for the non-CH32 baseline, which needs all multifamily permits on Oʻahu.
+- Read it with `low_memory=False` / `guess_max`. It has 674 columns, most of them sparse.
+
 ## Running
 
 - Run every script **from the repo root**. Paths like `data/...`, `outputs/...` and `fonts/...` are relative and there's no `setwd`/`here()`.
-- `data/` and `outputs/` are gitignored and not in the repo. So are all `*.csv`, `*.xlsx`, `*.png` and `*.jpg` files. The raw data is internal to UHERO and lives on the NAS. If `data/` is missing, scripts fail on the first `read_csv`. Ask the user for the data rather than inventing stand-ins.
+- Python is Miniconda at `C:\Users\curly\miniconda3`. The `scraping` env has selenium and pandas, the `geoanalysis` env has geopandas, and `base` has pandas. Call the interpreter by path, e.g. `C:\Users\curly\miniconda3\envs\scraping\python.exe`.
 - R packages: `tidyverse`, `lubridate`, `scales`, `sf`, `showtext`. Python packages: `selenium`, `webdriver-manager`, `pandas`.
 - There are no tests. Scripts check their inputs with `stopifnot()` blocks labelled "INTEGRITY TEST" / "Test N". Keep them, and add similar checks when you change joins or filters.
 
@@ -43,6 +71,25 @@ The author made one branch per analysis, but **every branch has already been mer
 | `roh_ch32_analysis.R` (main report graphs 1–5) | the permits CSV, `data/roh32_by_project_20260903.csv`, the old CH32 CSV (to recover unit counts), `data/MASTER_*.csv` | nothing. Plots go to the viewer with `print()`, not `ggsave`. |
 
 `roh_ch32_analysis.R` is the script under active revision; recent commits change Graph 5 in response to report comments.
+
+## Which report sections this repo feeds (`docs/`)
+
+There are two briefs. "Assessing Honolulu's 'Bill 7' Infill/Workforce Housing Program" is by Trey Gordner, Edith Prager and Rafael Munoz.
+- **`docs/ROH 32 Policy Brief - preliminary results.pdf`** (May 2026), marked not for public distribution.
+- **`docs/ROH 32 Policy Brief - draft final.md`**, about to be shared. Its images are embedded as base64. Strip them before reading (they make up roughly 90% of the 384 KB), and don't read the raw file whole.
+
+Most of the final brief comes from UHERO's Housing Policy Simulator, which is **not** in this repo. That covers the Methodology section, Tables 1–5, the sensitivity analysis, the comparisons with Ord. 26-7, and fee waivers. The transit and ACS analysis ("Bill 7 contributes to other policy goals") isn't here either. This repo feeds the following sections:
+
+| Brief section | Content | Source here |
+|---|---|---|
+| Final: Executive Summary, Background, **Figure 1** "Bill 7 Pipeline, 2019 to 2026" | 85 projects / 2,280 units; 7 completed / 224 units; 22 permitted / 776 units; 2023 peak of 475 units, over ¼ of proposed multifamily units citywide; 274 withdrawn units | Graph 2 (pipeline) and Graphs 1 and 4 (CH32 share of all multifamily) in `roh_ch32_analysis.R`, built on `roh32_by_project` |
+| Final: Discussion, "Permit delays…", **Figure 4** "Time with Agency vs. Developer" | Developer time ~350 days vs. agency time ~140 (also given as 167); 2024 cohort low of 88 days; 120-day abandonment rule; data through July 2025 | Graph 5 in `roh_ch32_analysis.R`, built on the scraped plan reviews |
+| Final: same section | "Bill 7 projects have taken roughly as long to get their permits as other multifamily projects" | Graph 3 (processing time compared with the baseline) |
+| Final: Findings, "How program parameters affect feasibility" | Advertised rents 14–34% below the 100% AMI limit, from 100+ listings across 5 projects | Probably the exact-match rent comparison (dumbbell plot) in `renthub_market_analysis.R` / `renthub_visualizations.R`. Confirm with the user. |
+| Preliminary: "Production volume and pipeline" | Pipeline chart; 189 units built; share of multifamily | Graph 2 (older data) |
+| Preliminary: "Permitting times" | Processing-time chart; medians of 518–1,000 days for mature cohorts; 19 of 59 pending projects permitted, averaging 661 days (median 548) | Graph 3 |
+
+Nothing in either brief visibly uses `council_district_analysis.R` or the plots from `renthub_visualizations.R` other than the rent-gap figure. When updating a number in a brief, re-derive it from the script and the current data, and say which data snapshot it comes from. The final brief's Figure 1 note says "data through early September".
 
 ## Domain conventions
 
