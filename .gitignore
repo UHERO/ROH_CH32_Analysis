@@ -15,3 +15,5 @@ outputs/
 .Rhistory
 .RData
 .DS_Store
+# Ignore Python caches
+__pycache__/

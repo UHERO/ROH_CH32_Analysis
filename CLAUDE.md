@@ -73,8 +73,15 @@ As of 2026-10-16, the local `data/` folder holds two files, provided by the user
 | `renthub_market_analysis.R` | `data/renthub_combined_2024_2026.csv`, the CH32 CSV, the districts geojson, the permits CSV | `outputs/RentHub_*.csv`, `outputs/Bill7_*.csv` |
 | `renthub_visualizations.R` | `outputs/` CSVs from `renthub_market_analysis.R` | `outputs/Plot1`–`Plot4` PNGs |
 | `roh_ch32_analysis.R` (main report graphs 1–5) | the permits CSV, `data/roh32_by_project_20260903.csv`, the old CH32 CSV (to recover unit counts), `data/MASTER_*.csv` | nothing. Plots go to the viewer with `print()`, not `ggsave`. |
+| `permit_rounds.py` (added 2026-10-16) | `data/roh32_by_project_20260903.csv`, plus `data/MASTER_Plan_Reviews.csv` if present, otherwise the April 2026 export (`--source auto\|master\|export`, `--data-dir`) | nothing. It prints review rounds, turnaround, applicant response, reopened reviews, first-round lag, and final-review-to-issuance gaps. |
+| `permit_rounds_checks.py` | same as above; imports `permit_rounds.py` | nothing. It prints coverage, date-integrity, and core-vs-all-reviews sensitivity checks. |
 
 `roh_ch32_analysis.R` is the script under active revision; recent commits change Graph 5 in response to report comments.
+
+`permit_rounds.py` supports the rewrite of the permitting section; the plan and draft text are in `docs/permitting_section_plan.md`.
+- Run it with the `base` or `scraping` env (it needs only pandas), from the repo root: `C:\Users\curly\miniconda3\python.exe scripts\permit_rounds.py`.
+- On the scraped file, it looks for an outcome column named `Outcome`, `Review Outcome`, `Result` or `Status`. If it finds none, it skips the approval-based sections (first approvals, reopened reviews), so check the first lines of its output.
+- Its numbers as of 2026-10-16 come from the export (50 of 85 projects) and are provisional until it's re-run on Rafael's `MASTER_Plan_Reviews.csv`.
 
 ## Which report sections this repo feeds (`docs/`)
 
