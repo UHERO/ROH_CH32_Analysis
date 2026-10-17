@@ -1,20 +1,25 @@
 # =========================================================
-# Project: ROH CH32 Plan Review Breakdown (Graph 5 / report Figure 4)
+# Project: ROH CH32 Plan Review Breakdown (Graph 5 / report Figure 5)
 # Author: Trey Gordner, UHERO
 # Assistance: Claude (Anthropic)
 #
 # PURPOSE:
-#   Reproduces Graph 5 of roh_ch32_analysis.R (Figure 4 in the draft final brief)
-#   and saves it to outputs/, without the inputs Graph 5 doesn't use
-#   (hnlpermits_with_status_0625.csv, roh32_complete_cleaned (1).csv).
-#   The data prep and plot code are copied from roh_ch32_analysis.R. If Graph 5
-#   changes there, update this script to match.
+#   1. Reproduces Graph 5 of roh_ch32_analysis.R (Figure 5 in the revised brief)
+#      without the inputs Graph 5 doesn't use (hnlpermits_with_status_0625.csv,
+#      roh32_complete_cleaned (1).csv). The data prep and plot code are copied
+#      from roh_ch32_analysis.R. If Graph 5 changes there, update this script to match.
+#   2. Adds a three-color version that splits agency time into DPP review and
+#      review by other agencies routed through DPP's system (Fire, Board of Water
+#      Supply, State DOH/DLNR/DOE, private third-party reviewers). A day counts as
+#      DPP time if any DPP review is open, otherwise as other-agency time if any
+#      other review is open. DPP + other agency = Graph 5's agency time.
 #
 # DATA (data/, run from the repo root):
 #   - roh32_by_project_20260903.csv
 #   - MASTER_Plan_Reviews.csv, MASTER_Metrics.csv (scraped from Posse)
 #
-# OUTPUT: outputs/Plot5_ROH32_Plan_Review_Breakdown.png
+# OUTPUT: outputs/Plot5_ROH32_Plan_Review_Breakdown.png (original)
+#         outputs/Plot5b_ROH32_Plan_Review_DPP_vs_Other_Agency.png (three-way split)
 # =========================================================
 
 library(tidyverse)
@@ -42,6 +47,7 @@ if (requireNamespace("showtext", quietly = TRUE)) {
 }
 
 uhero_dark_blue <- "#1D667F"
+uhero_light_blue<- "#7EC4CA"
 uhero_gray      <- "#505050"
 uhero_gold      <- "#F6A01B"
 uhero_green     <- "#9BBB59"
@@ -190,4 +196,106 @@ print(dpp_isolation_plot)
 
 if (!dir.exists("outputs")) dir.create("outputs")
 ggsave("outputs/Plot5_ROH32_Plan_Review_Breakdown.png", dpp_isolation_plot,
+       width = 12, height = 8, dpi = 300, bg = "white")
+
+# =========================================================
+# GRAPH 5b: SPLITTING AGENCY TIME INTO DPP VS. OTHER AGENCIES
+# =========================================================
+# Review types as named in DPP's Posse "Plan Reviews" tab. The Civil Engineering,
+# Traffic Review, and Wastewater branches are treated as DPP (site development).
+dpp_reviews <- c("Building Code", "Electrical Code", "Mechanical Code", "Zoning Code (ZPRB)",
+                 "Civil Engineering Branch (CEB)", "Traffic Review Branch (TRB)", "Wastewater Branch (WWB)")
+other_reviews <- c("Fire Code (HFD)", "Board of Water Supply (BWS)", "State DOH (A/C Ventilation Branch)",
+                   "State DOH (Wastewater Branch)", "State DLNR (Historical)", "State - DOE Impact Fee",
+                   "Third Party Review (Building)", "Third Party Review (Electrical)",
+                   "Third Party Review (Mechanical)", "Third Party Review (Structural)")
+
+# --- INTEGRITY TEST: every review type is classified ---
+unclassified <- setdiff(unique(clean_plan_reviews$`Type of Review`), c(dpp_reviews, other_reviews))
+stopifnot("FAIL: unclassified review types (add them to dpp_reviews or other_reviews)" = length(unclassified) == 0)
+
+# Each open review-day gets one owner: DPP if any DPP review is open that day
+reviewer_days <- clean_plan_reviews %>%
+  mutate(
+    end = if_else(is.na(end), posse_freeze_date, end),
+    Reviewer = if_else(`Type of Review` %in% dpp_reviews, "DPP", "Other")
+  ) %>%
+  rowwise() %>%
+  mutate(date_seq = list(seq(start, end, by = "day"))) %>%
+  unnest(date_seq) %>%
+  group_by(Application_Number, date_seq) %>%
+  summarize(Owner = if_else(any(Reviewer == "DPP"), "DPP_Days_Only", "Other_Agency_Days"), .groups = "drop") %>%
+  count(Application_Number, Owner) %>%
+  pivot_wider(names_from = Owner, values_from = n, values_fill = 0)
+
+split_times <- roh32_clean %>%
+  # Same sample as Graph 5
+  filter(!is.na(DPP_Days), Is_Zombie == FALSE, Project_Stage != "Canceled/Withdrawn", year_created < 2025) %>%
+  left_join(reviewer_days, by = c("primary_permit" = "Application_Number")) %>%
+  mutate(across(c(DPP_Days_Only, Other_Agency_Days), ~ replace_na(.x, 0)))
+
+# --- INTEGRITY TEST: DPP + other agency days = Graph 5 agency days, for every project ---
+stopifnot("FAIL: DPP + other agency days don't add up to Graph 5 agency days" =
+            all(split_times$DPP_Days_Only + split_times$Other_Agency_Days == split_times$DPP_Days))
+
+split_summary <- split_times %>%
+  group_by(year_created) %>%
+  summarize(
+    `DPP Review` = mean(DPP_Days_Only),
+    `Other Agency Review` = mean(Other_Agency_Days),
+    `Developer Time (Revisions)` = mean(Developer_Days),
+    .groups = "drop"
+  )
+
+cat("\nGraph 5b: mean days by application year\n")
+print(split_summary %>% mutate(across(-year_created, round)))
+cat("Cohort-year average:\n")
+print(split_summary %>% summarize(across(-year_created, ~ round(mean(.x)))))
+cat("Project-level average (n = ", nrow(split_times), "):\n", sep = "")
+print(split_times %>% summarize(`DPP Review` = round(mean(DPP_Days_Only)),
+                                `Other Agency Review` = round(mean(Other_Agency_Days)),
+                                `Developer Time (Revisions)` = round(mean(Developer_Days))))
+
+split_long <- split_summary %>%
+  pivot_longer(-year_created, names_to = "Time_Type", values_to = "Average_Days") %>%
+  mutate(
+    Time_Type = factor(Time_Type, levels = c("Developer Time (Revisions)", "Other Agency Review", "DPP Review")),
+    # Label segments big enough to hold a number; dark text on the light segment
+    Label = ifelse(Average_Days >= 25, round(Average_Days), ""),
+    Label_Color = ifelse(Time_Type == "Other Agency Review", uhero_dark_blue, "white")
+  )
+
+split_plot <- ggplot(split_long, aes(x = year_created, y = Average_Days, fill = Time_Type)) +
+  geom_bar(stat = "identity", position = "stack", width = 0.65) +
+  geom_text(aes(label = Label, color = Label_Color, group = Time_Type),
+            position = position_stack(vjust = 0.5),
+            family = uhero_font, fontface = "bold", size = 6, show.legend = FALSE) +
+  scale_color_identity() +
+  geom_hline(yintercept = 90, linetype = "dashed", color = uhero_dark_blue, linewidth = 0.8) +
+  annotate("text", x = max(split_long$year_created) + 0.4, y = 90,
+           label = "90-day\nShot Clock", vjust = 0.5,
+           color = uhero_dark_blue, family = uhero_font, fontface = "bold", hjust = 0, size = 4.5) +
+  scale_fill_manual(values = c("DPP Review" = uhero_gold,
+                               "Other Agency Review" = uhero_light_blue,
+                               "Developer Time (Revisions)" = uhero_green),
+                    breaks = c("DPP Review", "Other Agency Review", "Developer Time (Revisions)")) +
+  labs(
+    title = "ROH CH32 PLAN REVIEW BREAKDOWN: DPP VS. OTHER AGENCIES",
+    subtitle = "Average days with a DPP review open, only another agency's review open, or no review open (Active & Issued Projects)",
+    caption = paste0(
+      "Note: Other agencies include the Fire Department, Board of Water Supply, State DOH, DLNR, and DOE, and private\n",
+      "third-party reviewers, as recorded in DPP's system. Days when DPP and another agency both had reviews open count as DPP review.\n",
+      "Approvals outside DPP's system are included in developer time.\n",
+      "Source: City and County of Honolulu Department of Planning and Permitting (DPP); UHERO calculations"),
+    x = "Application Year",
+    y = "Average Processing Days",
+    fill = ""
+  ) +
+  scale_x_continuous(breaks = seq(min(split_long$year_created), max(split_long$year_created), by = 1),
+                     expand = expansion(add = c(0.5, 1.1))) +
+  theme_uhero()
+
+print(split_plot)
+
+ggsave("outputs/Plot5b_ROH32_Plan_Review_DPP_vs_Other_Agency.png", split_plot,
        width = 12, height = 8, dpi = 300, bg = "white")
