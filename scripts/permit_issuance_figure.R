@@ -4,25 +4,23 @@
 # Assistance: Claude (Anthropic)
 #
 # PURPOSE:
-#   Plots the cumulative share of permits issued by years since application,
-#   for Bill 7 (ROH 32) and other new multifamily buildings of 10-100 units,
-#   2019-2024 applications. Kaplan-Meier estimates treat permits still pending at
-#   the snapshot date as censored, so slow, unfinished permits are not dropped
-#   (unlike Graph 3's issued-only medians).
+#   Plots the cumulative share of projects with permits issued, by years since
+#   application, for Bill 7 (ROH 32) projects and other new apartment projects
+#   (4+ units), 2019-2024 applications. Kaplan-Meier estimates treat projects still
+#   pending at the snapshot date as censored, so slow, unfinished projects are not
+#   dropped (unlike Graph 3's issued-only medians).
 #
-#   Same definitions as scripts/baseline_permit_times.py, which prints the numbers
-#   quoted in the report (e.g., 25% vs. 78% issued within two years).
+#   Reads the project table written by scripts/baseline_permit_times.py, which
+#   holds the definitions (apartment structure code, no townhouses, permits
+#   grouped into projects) and prints the numbers quoted in the report.
 #
-# DATA (data/, run from the repo root):
-#   - honolulu_bp_newbuilding_2018_2025.csv (python scripts/baseline_permit_times.py --download)
-#   - roh32_by_project_20260903.csv
-#   - MASTER_Plan_Reviews.csv (optional: adds a "Bill 7, excluding dormant" line)
+# DATA (run from the repo root):
+#   - outputs/permit_issuance_projects.csv (python scripts/baseline_permit_times.py)
 #
-# OUTPUT: outputs/Plot_Permit_Issuance_Bill7_vs_Multifamily.png
+# OUTPUT: outputs/Plot_Permit_Issuance_Bill7_vs_Apartments.png
 # =========================================================
 
 library(tidyverse)
-library(lubridate)
 library(survival)
 
 # =========================================================
@@ -65,61 +63,22 @@ theme_uhero <- function(base_size = 14) {
 }
 
 # =========================================================
-# DATA LOADING (same definitions as baseline_permit_times.py)
+# DATA LOADING (definitions live in baseline_permit_times.py)
 # =========================================================
-snapshot_date <- as.Date("2025-06-30")      # end of DPP's public permit snapshot
-posse_freeze_date <- as.Date("2025-07-28")  # last date in the Posse plan-review records
-mf_pattern <- "R-1|R-2|R1|R2|APARTMENT|MULTI-FAMILY|MULTIFAMILY|APT|TOWNHOUSE"
-
-permits <- read_csv("data/honolulu_bp_newbuilding_2018_2025.csv",
-                    col_types = cols(.default = col_character()))
-roh32_data <- read_csv("data/roh32_by_project_20260903.csv", show_col_types = FALSE)
-
-multifamily <- permits %>%
-  mutate(use_text = toupper(paste(replace_na(occupancygroupcategory, ""), replace_na(proposeduse, "")))) %>%
-  filter(str_detect(use_text, mf_pattern)) %>%
-  mutate(
-    units = as.numeric(numunitsadd),
-    created = as.Date(ymd_hms(createddate)),
-    issued = as.Date(ymd_hms(issuedate)),
-    app_year = year(created),
-    is_bill7 = externalfilenum %in% roh32_data$primary_permit,
-    event = !is.na(issued),
-    days = as.numeric(if_else(event, issued - created, snapshot_date - created))
-  ) %>%
-  filter(units > 0, statusdescription != "Job Cancelled", between(app_year, 2019, 2024))
+projects <- read_csv("outputs/permit_issuance_projects.csv", show_col_types = FALSE)
 
 samples <- bind_rows(
-  multifamily %>% filter(is_bill7) %>% mutate(Group = "Bill 7"),
-  multifamily %>% filter(!is_bill7, between(units, 10, 100)) %>%
-    mutate(Group = "Other multifamily (10-100 units)")
+  projects %>% filter(is_bill7) %>% mutate(Group = "Bill 7"),
+  projects %>% filter(is_bill7, !dormant) %>% mutate(Group = "Bill 7, excluding dormant applications"),
+  projects %>% filter(!is_bill7) %>% mutate(Group = "Other apartment projects")
 )
 
-# Optional: Bill 7 without dormant applications (pending, no review action in the
-# 120 days before the Posse freeze), as Graph 5 excludes them
-if (file.exists("data/MASTER_Plan_Reviews.csv")) {
-  last_action <- read_csv("data/MASTER_Plan_Reviews.csv", col_types = cols(.default = col_character())) %>%
-    mutate(done = suppressWarnings(mdy(`Date Completed`))) %>%
-    group_by(Application_Number) %>%
-    summarize(last_action = suppressWarnings(max(done, na.rm = TRUE)), .groups = "drop")
-  dormant_ids <- multifamily %>%
-    filter(is_bill7, !event) %>%
-    left_join(last_action, by = c("externalfilenum" = "Application_Number")) %>%
-    filter(last_action < posse_freeze_date - 120) %>%
-    pull(externalfilenum)
-  samples <- bind_rows(
-    samples,
-    multifamily %>% filter(is_bill7, !externalfilenum %in% dormant_ids) %>%
-      mutate(Group = "Bill 7, excluding dormant applications")
-  )
-}
-
-group_levels <- c("Bill 7", "Bill 7, excluding dormant applications", "Other multifamily (10-100 units)")
-samples <- samples %>% mutate(Group = factor(Group, levels = intersect(group_levels, unique(Group))))
+group_levels <- c("Bill 7", "Bill 7, excluding dormant applications", "Other apartment projects")
+samples <- samples %>% mutate(Group = factor(Group, levels = group_levels))
 
 # --- INTEGRITY TEST ---
 stopifnot(
-  "FAIL: no Bill 7 permits matched" = sum(samples$Group == "Bill 7") > 0,
+  "FAIL: no Bill 7 projects" = sum(samples$Group == "Bill 7") > 0,
   "FAIL: negative durations" = all(samples$days >= 0)
 )
 
@@ -158,21 +117,19 @@ print(km_labels %>% left_join(group_counts, by = "Group") %>%
 
 # Label only the two-year mark on the chart (the one-year shares are close together)
 km_labels_2yr <- km_labels %>% filter(round(Years) == 2)
-stopifnot("FAIL: too few permits at risk at two years to label" = all(km_labels_2yr$At_Risk >= min_at_risk))
+stopifnot("FAIL: too few projects at risk at two years to label" = all(km_labels_2yr$At_Risk >= min_at_risk))
 
 # =========================================================
-# GRAPH: SHARE OF PERMITS ISSUED BY YEARS SINCE APPLICATION
+# GRAPH: SHARE OF PROJECTS ISSUED BY YEARS SINCE APPLICATION
 # =========================================================
 group_colors <- c("Bill 7" = uhero_dark_blue,
                   "Bill 7, excluding dormant applications" = uhero_dark_blue,
-                  "Other multifamily (10-100 units)" = uhero_gold)
+                  "Other apartment projects" = uhero_gold)
 group_lines <- c("Bill 7" = "solid",
                  "Bill 7, excluding dormant applications" = "dashed",
-                 "Other multifamily (10-100 units)" = "solid")
+                 "Other apartment projects" = "solid")
 legend_labels <- group_counts %>%
-  mutate(label = paste0(str_remove(Group, " \\(10-100 units\\)"),
-                        if_else(str_detect(Group, "10-100"), ", 10-100 units", ""),
-                        " (n = ", n, ")")) %>%
+  mutate(label = paste0(Group, " (n = ", n, ")")) %>%
   { setNames(.$label, as.character(.$Group)) }
 
 x_max <- ceiling(max(km_curves$Years))
@@ -190,15 +147,19 @@ issuance_plot <- ggplot(km_curves, aes(x = Years, y = Share_Issued, color = Grou
   scale_y_continuous(breaks = seq(0, 1, 0.25), limits = c(0, 1),
                      labels = c("0", "25", "50", "75", "100%")) +
   labs(
-    title = "SHARE OF MULTIFAMILY PERMITS ISSUED, BY TIME SINCE APPLICATION",
-    subtitle = "New multifamily building permits applied for 2019-2024, Bill 7 vs. other multifamily projects of 10-100 units",
+    title = "SHARE OF APARTMENT PROJECTS PERMITTED, BY TIME SINCE APPLICATION",
+    subtitle = "New apartment projects (4+ units) applied for 2019-2024: Bill 7 vs. other apartment projects",
     caption = paste0(
-      "Note: Kaplan-Meier estimates; permits not yet issued by June 30, 2025 are treated as censored, and canceled permits are excluded.\n",
-      "Dormant applications had no plan-review action in the 120 days before July 28, 2025. Lines end when fewer than ", min_at_risk, " permits remain pending.\n",
+      "Note: Kaplan-Meier estimates. Projects not fully permitted by June 30, 2025 are treated as censored; canceled permits are excluded. ",
+      "Other apartment projects
+are DPP structure code 53 (apartment, 3+ units) excluding townhouses, with building permits grouped by parcel and application date. ",
+      "Dormant applications had
+no plan-review action in the 120 days before July 28, 2025. Lines end when fewer than ", min_at_risk, " projects remain pending.
+",
       "Source: City and County of Honolulu Department of Planning and Permitting (DPP), building permits through June 30, 2025; UHERO calculations"
     ),
     x = "Years Since Application",
-    y = "Share of Permits Issued",
+    y = "Share of Projects Permitted",
     color = NULL, linetype = NULL
   ) +
   guides(color = guide_legend(nrow = 2, byrow = TRUE)) +
@@ -207,5 +168,5 @@ issuance_plot <- ggplot(km_curves, aes(x = Years, y = Share_Issued, color = Grou
 print(issuance_plot)
 
 if (!dir.exists("outputs")) dir.create("outputs")
-ggsave("outputs/Plot_Permit_Issuance_Bill7_vs_Multifamily.png", issuance_plot,
+ggsave("outputs/Plot_Permit_Issuance_Bill7_vs_Apartments.png", issuance_plot,
        width = 12, height = 7, dpi = 300, bg = "white")
