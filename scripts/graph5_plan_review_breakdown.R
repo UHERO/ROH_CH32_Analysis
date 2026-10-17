@@ -243,7 +243,7 @@ split_summary <- split_times %>%
   summarize(
     `DPP Review` = mean(DPP_Days_Only),
     `Other Agency Review` = mean(Other_Agency_Days),
-    `Developer Time (Revisions)` = mean(Developer_Days),
+    `Developer Time` = mean(Developer_Days),
     .groups = "drop"
   )
 
@@ -254,12 +254,12 @@ print(split_summary %>% summarize(across(-year_created, ~ round(mean(.x)))))
 cat("Project-level average (n = ", nrow(split_times), "):\n", sep = "")
 print(split_times %>% summarize(`DPP Review` = round(mean(DPP_Days_Only)),
                                 `Other Agency Review` = round(mean(Other_Agency_Days)),
-                                `Developer Time (Revisions)` = round(mean(Developer_Days))))
+                                `Developer Time` = round(mean(Developer_Days))))
 
 split_long <- split_summary %>%
   pivot_longer(-year_created, names_to = "Time_Type", values_to = "Average_Days") %>%
   mutate(
-    Time_Type = factor(Time_Type, levels = c("Developer Time (Revisions)", "Other Agency Review", "DPP Review")),
+    Time_Type = factor(Time_Type, levels = c("Developer Time", "Other Agency Review", "DPP Review")),
     # Label segments big enough to hold a number; dark text on the light segment
     Label = ifelse(Average_Days >= 25, round(Average_Days), ""),
     Label_Color = ifelse(Time_Type == "Other Agency Review", uhero_dark_blue, "white")
@@ -277,16 +277,13 @@ split_plot <- ggplot(split_long, aes(x = year_created, y = Average_Days, fill = 
            color = uhero_dark_blue, family = uhero_font, fontface = "bold", hjust = 0, size = 4.5) +
   scale_fill_manual(values = c("DPP Review" = uhero_gold,
                                "Other Agency Review" = uhero_light_blue,
-                               "Developer Time (Revisions)" = uhero_green),
-                    breaks = c("DPP Review", "Other Agency Review", "Developer Time (Revisions)")) +
+                               "Developer Time" = uhero_green),
+                    breaks = c("DPP Review", "Other Agency Review", "Developer Time")) +
   labs(
-    title = "ROH CH32 PLAN REVIEW BREAKDOWN: DPP VS. OTHER AGENCIES",
+    title = "BILL 7 PERMIT TIME BY RESPONSIBLE PARTY",
     subtitle = "Average days with a DPP review open, only another agency's review open, or no review open (Active & Issued Projects)",
-    caption = paste0(
-      "Note: Other agencies include the Fire Department, Board of Water Supply, State DOH, DLNR, and DOE, and private\n",
-      "third-party reviewers, as recorded in DPP's system. Days when DPP and another agency both had reviews open count as DPP review.\n",
-      "Approvals outside DPP's system are included in developer time.\n",
-      "Source: City and County of Honolulu Department of Planning and Permitting (DPP); UHERO calculations"),
+    # Definitions (other agencies, overlapping days) are in the report's footnote
+    caption = "Source: City and County of Honolulu Department of Planning and Permitting (DPP); UHERO calculations",
     x = "Application Year",
     y = "Average Processing Days",
     fill = ""
